@@ -2,6 +2,7 @@ import requests
 import os 
 import csv 
 import time 
+import snowflake.connector
 from dotenv import load_dotenv 
 load_dotenv()
 
@@ -60,3 +61,46 @@ with open(filename, "w", newline="", encoding="utf-8") as f:
         writer.writerow(row)
 
 print(f"Data saved to {filename}, rows: {len(tickers)}")
+
+# connecting to Snowflake
+conn = snowflake.connector.connect(
+    user=os.getenv("USER_SNOWFLAKE"),
+    password=os.getenv("password_snowflake"),
+    account=os.getenv("account_snowflake"),
+    # warehouse=os.getenv("WAREHOUSE_SNOWFLAKE"),
+    database=os.getenv("DATABASE_SNOWFLAKE"),
+    schema=os.getenv("SCHEMA_SNOWFLAKE"),
+    role=os.getenv("SNOWFLAKE_ROLE")
+)
+
+cursor = conn.cursor()
+
+# insert data 
+insert_sql = """
+INSERT INTO LOM_TICKERS.PUBLIC.TICKERS (
+    ticker, name, market, locale, primary_exchange, type, active,
+    currency_name, cik, composite_figi, share_class_figi, last_updated_utc
+) VALUES (%(ticker)s, %(name)s, %(market)s, %(locale)s, %(primary_exchange)s,
+          %(type)s, %(active)s, %(currency_name)s, %(cik)s, %(composite_figi)s,
+          %(share_class_figi)s, %(last_updated_utc)s)
+"""
+
+
+
+required_keys = [
+    "ticker", "name", "market", "locale", "primary_exchange", "type", "active",
+    "currency_name", "cik", "composite_figi", "share_class_figi", "last_updated_utc"
+]
+
+normalized = []
+for row in tickers:
+    norm_row = {k: row.get(k) for k in required_keys}
+    normalized.append(norm_row)
+
+cursor.executemany(insert_sql, normalized)
+
+conn.commit()
+cursor.close()
+conn.close()
+
+print("Data is also saved in snowflake")

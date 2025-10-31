@@ -3,3 +3,5 @@ openai
 dotenv
 time 
 csv
+snowflake-connector-python
+
